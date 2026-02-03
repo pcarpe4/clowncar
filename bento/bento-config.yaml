@@ -20,15 +20,9 @@ data:
           root.email = fake("email")
           root.created_at = now()
     output:
-      sql_insert:
+      sql_raw:
         driver: postgres
-        dsn: postgres://${POSTGRESQL_USER}:${POSTGRESQL_PASSWORD}@postgres.postgres.svc.cluster.local:5432/${POSTGRESQL_DATABASE}?sslmode=disable
-        table: users
-        columns:
-          - id
-          - name
-          - email
-          - created_at
+        dsn: postgres://${POSTGRESQL_USER}:${POSTGRESQL_PASSWORD}@postgres.bento.svc.cluster.local:5432/${POSTGRESQL_DATABASE}?sslmode=disable
         init_statement: |
           CREATE TABLE IF NOT EXISTS users (
             id TEXT PRIMARY KEY,
@@ -36,8 +30,8 @@ data:
             email TEXT,
             created_at TIMESTAMP
           );
-    args_mapping: |
-      root = [this.id, this.name, this.email, this.created_at]
+        query: INSERT INTO users (id, name, email, created_at) VALUES ($1, $2, $3, $4)
+        args_mapping: root = [this.id, this.name, this.email, this.created_at]
 ---
 apiVersion: v1
 kind: Secret
@@ -46,9 +40,9 @@ metadata:
   namespace: bento
 type: Opaque
 stringData:
-  POSTGRESSQL_USER: bento
-  POSTGRESSQL_PASSWORD: bento123
-  POSTGRESSQL_DATABASE: bentodb
+  POSTGRESQL_USER: bento
+  POSTGRESQL_PASSWORD: bento123
+  POSTGRESQL_DATABASE: bentodb
 ---
 apiVersion: batch/v1
 kind: CronJob
@@ -56,7 +50,7 @@ metadata:
   name: bento
   namespace: bento
 spec:
-  schedule: "*/1 * * * *"
+  schedule: "*/5 * * * *"
   jobTemplate:
     spec:
       template:
