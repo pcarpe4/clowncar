@@ -36,6 +36,8 @@ data:
             email TEXT,
             created_at TIMESTAMP
           );
+    args_mapping: |
+      root = [this.id, this.name, this.email, this.created_at]
 ---
 apiVersion: v1
 kind: Secret
