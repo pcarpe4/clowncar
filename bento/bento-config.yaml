@@ -22,7 +22,7 @@ data:
     output:
       sql_insert:
         driver: postgres
-        dsn: postgres://${POSTGRESSQL_USER}:${POSTGRESSQL_PASSWORD}@postgres.postgres.svc.cluster.local:5432/${POSTGRESSQL_DATABASE}?sslmode=disable
+        dsn: postgres://${POSTGRESQL_USER}:${POSTGRESQL_PASSWORD}@postgres.postgres.svc.cluster.local:5432/${POSTGRESQL_DATABASE}?sslmode=disable
         table: users
         columns:
           - id
