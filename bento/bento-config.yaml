@@ -1,0 +1,85 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bento
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bento-config
+  namespace: bento
+data:
+  config.yaml: |
+    input:
+      generate:
+        count: 100
+        interval: ""
+        mapping: |
+          root.id = uuid_v4()
+          root.name = fake("name")
+          root.email = fake("email")
+          root.created_at = now()
+    output:
+      sql_insert:
+        driver: postgres
+        dsn: postgres://${POSTGRESSQL_USER}:${POSTGRESSQL_PASSWORD}@postgres.postgres.svc.cluster.local:5432/${POSTGRESSQL_DATABASE}?sslmode=disable
+        table: users
+        columns:
+          - id
+          - name
+          - email
+          - created_at
+        init_statement: |
+          CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY,
+            name TEXT,
+            email TEXT,
+            created_at TIMESTAMP
+          );
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-creds
+  namespace: bento
+type: Opaque
+stringData:
+  POSTGRESSQL_USER: bento
+  POSTGRESSQL_PASSWORD: bento123
+  POSTGRESSQL_DATABASE: bentodb
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: bento
+  namespace: bento
+spec:
+  schedule: "*/5 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: bento
+            image: ghcr.io/warpstreamlabs/bento:latest
+            args: ["-c", "/etc/bento/config.yaml"]
+            envFrom:
+            - secretRef:
+                name: postgres-creds
+            volumeMounts:
+            - name: config
+              mountPath: /etc/bento
+              readOnly: true
+            securityContext:
+              allowPrivilegeEscalation: false
+              runAsNonRoot: true
+              capabilities:
+                drop:
+                  - ALL
+              seccompProfile:
+                type: RuntimeDefault
+          volumes:
+          - name: config
+            configMap:
+              name: bento-config
+          restartPolicy: OnFailure
