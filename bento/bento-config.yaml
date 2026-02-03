@@ -54,7 +54,7 @@ metadata:
   name: bento
   namespace: bento
 spec:
-  schedule: "*/1 * * * *"
+  schedule: "*/5 * * * *"
   jobTemplate:
     spec:
       template:
