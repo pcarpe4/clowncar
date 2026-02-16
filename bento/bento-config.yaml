@@ -30,6 +30,7 @@ data:
             email TEXT,
             created_at TIMESTAMP
           );
+          TRUNCATE TABLE users;
         query: INSERT INTO users (id, name, email, created_at) VALUES ($1, $2, $3, $4)
         args_mapping: root = [this.id, this.name, this.email, this.created_at]
 ---
@@ -50,7 +51,7 @@ metadata:
   name: bento
   namespace: bento
 spec:
-  schedule: "*/5 * * * *"
+  schedule: "0 12 * * *"
   jobTemplate:
     spec:
       template:
