@@ -78,21 +78,6 @@ data:
           - target_label: __metrics_path__
             replacement: /metrics/cadvisor
 ---
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: prometheus-rules
-  namespace: monitoring
-data:
-  recording_rules.yml: |-
-    groups:
-    - name: custom_metrics
-      interval: 30s
-      rules:
-      # Add your custom recording rules here
-      - record: zacks_excitement_for_patrick
-        expr: time()
----
 # ServiceAccount for Prometheus (needed to access Kubernetes API)
 apiVersion: v1
 kind: ServiceAccount
