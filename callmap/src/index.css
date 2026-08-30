@@ -1,0 +1,76 @@
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import 'tailwindcss';
+@import '@xyflow/react/dist/style.css';
+
+@theme {
+  --color-ink: #16213a;
+  --color-muted: #5b6578;
+  --color-line: #d5dbe4;
+  --color-paper: #ffffff;
+  --color-canvas: #eef1f5;
+  --color-q: #3b5bdb;
+  --color-a: #12876f;
+  --color-f: #e8590c;
+
+  --font-display: 'Bricolage Grotesque', 'Instrument Sans', sans-serif;
+  --font-ui: 'Instrument Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+
+  --animate-cm-flash: cm-flash 0.9s ease-out;
+}
+
+@keyframes cm-flash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 91, 219, 0.55);
+  }
+  100% {
+    box-shadow: 0 0 0 16px rgba(59, 91, 219, 0);
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The card draws its own frame; strip React Flow's default node chrome. */
+.react-flow__node {
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.react-flow__node.dragging,
+.react-flow__node:active {
+  cursor: grabbing;
+}
+.react-flow__handle {
+  opacity: 0;
+  pointer-events: none;
+}
+/* Selection is drawn by the card itself, from our own store. */
+.react-flow__node.selected {
+  outline: none;
+}
+.react-flow__node:focus-visible {
+  outline: 2px solid var(--color-q);
+  outline-offset: 3px;
+  border-radius: 14px;
+}
+.react-flow__attribution {
+  font-size: 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
