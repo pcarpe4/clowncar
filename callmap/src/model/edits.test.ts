@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { parseText } from './parse'
 import { serialize, shiftIndent } from './serialize'
-import { addChild, cycleType, deleteNode, reparent, setNodeText } from './edits'
+import { addChild, cycleType, deleteNode, reparent, setNodeText, toggleDone } from './edits'
 
 const SAMPLE = `Q: Ship v2 in September?
   A: Only if QA signs off by the 10th #Maria
@@ -23,17 +23,17 @@ describe('serialize', () => {
   })
 
   it('writes the indent from the depth', () => {
-    expect(serialize({ depth: 2, type: 'note', text: 'x', owner: null, date: null })).toBe('    x')
+    expect(serialize({ depth: 2, type: 'note', text: 'x', owner: null, date: null, done: false })).toBe('    x')
   })
 
   it('writes owner before date', () => {
-    expect(serialize({ depth: 0, type: 'action', text: 'go', owner: 'Sam', date: 'Sep 12' })).toBe(
+    expect(serialize({ depth: 0, type: 'action', text: 'go', owner: 'Sam', date: 'Sep 12', done: false })).toBe(
       '> go #Sam @Sep 12',
     )
   })
 
   it('omits the prefix for a note', () => {
-    expect(serialize({ depth: 0, type: 'note', text: 'just a note', owner: null, date: null })).toBe(
+    expect(serialize({ depth: 0, type: 'note', text: 'just a note', owner: null, date: null, done: false })).toBe(
       'just a note',
     )
   })
@@ -173,5 +173,36 @@ Q: Who owns launch comms?
   it('keeps the line count unchanged', () => {
     const out = edit((t, m) => reparent(t, m, 3, 4))!
     expect(out.split('\n')).toHaveLength(SAMPLE.split('\n').length)
+  })
+})
+
+describe('toggleDone', () => {
+  const run = (text: string, id: number) => toggleDone(text, parseText(text), id)!.text
+
+  it('ticks a follow-up off', () => {
+    expect(run('> Confirm QA', 0)).toBe('> [x] Confirm QA')
+  })
+
+  it('un-ticks one that was already done', () => {
+    expect(run('> [x] Confirm QA', 0)).toBe('> Confirm QA')
+  })
+
+  it('keeps the indent, owner and date', () => {
+    expect(run('  > Confirm QA #Dave @Sep 3', 0)).toBe('  > [x] Confirm QA #Dave @Sep 3')
+  })
+
+  it('leaves the rest of the buffer alone', () => {
+    expect(run('Q: Ship?\n  > Confirm QA\n  > Other', 1)).toBe(
+      'Q: Ship?\n  > [x] Confirm QA\n  > Other',
+    )
+  })
+
+  it('is not a structural edit', () => {
+    const text = '> Confirm QA'
+    expect(toggleDone(text, parseText(text), 0)!.structural).toBe(false)
+  })
+
+  it('returns null for an unknown id', () => {
+    expect(toggleDone('> a', parseText('> a'), 9)).toBeNull()
   })
 })

@@ -1,9 +1,11 @@
-import { useEffect, useRef } from 'react'
-import { useCallmap } from '../store/useCallmap'
+import { useCallback, useEffect, useRef } from 'react'
+import type { Model } from '../model/types'
+import { useCallmap, useText } from '../store/useCallmap'
 
-export function NotesPane() {
-  const text = useCallmap((s) => s.text)
+export function NotesPane({ model }: { model: Model }) {
+  const text = useText()
   const setText = useCallmap((s) => s.setText)
+  const setActiveTopic = useCallmap((s) => s.setActiveTopic)
   const ref = useRef<HTMLTextAreaElement>(null)
   /** Caret position to restore after a programmatic edit (Tab / Enter). */
   const pendingSelection = useRef<[number, number] | null>(null)
@@ -20,6 +22,24 @@ export function NotesPane() {
     setText(next)
     pendingSelection.current = [start, end]
   }
+
+  /**
+   * Which topic is the caret under? The last `#` line at or above it — which is
+   * how an agenda reads, and it stays right on blank lines and part-typed ones
+   * where a tree walk would find no node at all.
+   */
+  const followTopic = useCallback(
+    (value: string, caret: number) => {
+      const line = value.slice(0, caret).split('\n').length - 1
+      let current: string | null = null
+      for (const node of model.byId.values()) {
+        if (node.id > line) break
+        if (node.type === 'topic') current = node.text
+      }
+      setActiveTopic(current)
+    },
+    [model, setActiveTopic],
+  )
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const { selectionStart: s, selectionEnd: end, value } = e.currentTarget
@@ -58,15 +78,19 @@ export function NotesPane() {
         value={text}
         onChange={(e) => apply(e.target.value, e.target.selectionStart, e.target.selectionEnd)}
         onKeyDown={onKeyDown}
+        onSelect={(e) => followTopic(e.currentTarget.value, e.currentTarget.selectionStart)}
         spellCheck={false}
         placeholder="Q: What are we deciding today?"
         style={{ tabSize: 2 }}
         className="flex-1 resize-none border-0 bg-transparent p-3.5 font-mono text-[13px] leading-[1.55] text-ink outline-0 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-q/40"
       />
-      <div className="border-t border-line px-3.5 py-2.5 text-[11.5px] leading-[1.8] text-muted">
-        <Key>Q:</Key> question · <Key>A:</Key> answer · <Key>&gt;</Key> follow-up · <Key>#name</Key>{' '}
-        owner · <Key>@date</Key> due · <Key>Tab</Key> nests under the line above · drag a card onto
-        another card to move it there
+      <div className="border-t border-line px-3.5 py-2.5 text-[11.5px] leading-[1.9] text-muted">
+        <Key>Q:</Key> question · <Key>A:</Key> answer · <Key>D:</Key> decision · <Key>&gt;</Key>{' '}
+        follow-up · <Key>!!</Key> risk · <Key>~</Key> idea · <Key>#</Key> topic
+        <div className="mt-1.5 border-t border-line pt-1.5">
+          <Key>#name</Key> owner · <Key>@date</Key> due · <Key>[x]</Key> done · <Key>Tab</Key> nests
+          under the line above · drag a card onto another card to move it there
+        </div>
       </div>
     </aside>
   )

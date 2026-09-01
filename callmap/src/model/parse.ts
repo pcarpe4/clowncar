@@ -1,6 +1,23 @@
+import { parseDueDate, todayIso } from './dates'
 import type { CallNode, Model, NodeType, ParsedLine, RootNode } from './types'
 
 export const tabsToSpaces = (s: string): string => s.replace(/\t/g, '  ')
+
+/**
+ * Prefix table, tried in order. Order is load-bearing in two places:
+ *  - `risk` sits before `action` so `!!` is not eaten by `!`;
+ *  - `topic`'s `#` form requires a following space, so a line that opens with
+ *    an owner (`#Maria said yes`) still parses as a note owned by Maria.
+ */
+const PREFIXES: readonly [NodeType, RegExp][] = [
+  ['question', /^(q:|\?)\s*/i],
+  ['answer', /^(a:|=)\s*/i],
+  ['decision', /^(d:|decision:|decided:)\s*/i],
+  ['risk', /^(!!|r:|risk:|blocker:)\s*/i],
+  ['action', /^(>|!|todo:|action:)\s*/i],
+  ['idea', /^(~|i:|idea:)\s*/i],
+  ['topic', /^(#\s|t:|topic:)\s*/i],
+]
 
 /**
  * Parse one line of shorthand.
@@ -18,16 +35,22 @@ export function parseLine(raw: string): ParsedLine {
   let body = line.trim()
   let type: NodeType = 'note'
 
-  let m: RegExpMatchArray | null
-  if ((m = body.match(/^(q:|\?)\s*/i))) {
-    type = 'question'
-    body = body.slice(m[0].length)
-  } else if ((m = body.match(/^(a:|=)\s*/i))) {
-    type = 'answer'
-    body = body.slice(m[0].length)
-  } else if ((m = body.match(/^(>|!|todo:)\s*/i))) {
-    type = 'action'
-    body = body.slice(m[0].length)
+  for (const [candidate, re] of PREFIXES) {
+    const m = re.exec(body)
+    if (m) {
+      type = candidate
+      body = body.slice(m[0].length)
+      break
+    }
+  }
+
+  // A `[x]` / `[ ]` marker sits between the type prefix and the text, so it is
+  // read before owner and date are pulled off the end.
+  let done = false
+  const ticked = /^\[([ xX])\]\s*/.exec(body)
+  if (ticked) {
+    done = ticked[1]!.toLowerCase() === 'x'
+    body = body.slice(ticked[0].length)
   }
 
   let owner: string | null = null
@@ -45,14 +68,20 @@ export function parseLine(raw: string): ParsedLine {
   // A line ending in ? is a question even without the Q: prefix.
   if (type === 'note' && /\?$/.test(body)) type = 'question'
 
-  return { depth: Math.round(indent / 2), type, text: body, owner, date }
+  return { depth: Math.round(indent / 2), type, text: body, owner, date, done }
 }
+
+/** A direct child of one of these closes an open question. */
+const RESOLVING: readonly NodeType[] = ['answer', 'decision']
 
 /**
  * Parse the whole notes buffer into a tree. Blank lines are skipped but still
  * consume their index, so a node's id always equals its source line number.
+ *
+ * `refIso` is the day relative dates ("friday", "eom") resolve against — the
+ * meeting's own date, so reopening old notes does not slide their deadlines.
  */
-export function parseText(text: string): Model {
+export function parseText(text: string, refIso: string = todayIso()): Model {
   const lines = text.split('\n')
   const root: RootNode = {
     id: -1,
@@ -69,10 +98,12 @@ export function parseText(text: string): Model {
 
   lines.forEach((raw, i) => {
     if (!raw.trim()) return
+    const parsed = parseLine(raw)
     const node: CallNode = {
       id: i,
       line: i,
-      ...parseLine(raw),
+      ...parsed,
+      due: parsed.date ? parseDueDate(parsed.date, refIso) : null,
       end: i,
       children: [],
       parent: root,
@@ -91,7 +122,7 @@ export function parseText(text: string): Model {
       end = Math.max(end, finish(c))
     })
     n.end = end
-    if (n.type === 'question') n.open = !n.children.some((c) => c.type === 'answer')
+    if (n.type === 'question') n.open = !n.children.some((c) => RESOLVING.includes(c.type))
     return end
   }
   finish(root)
@@ -107,4 +138,22 @@ export function isDescendant(node: CallNode, ancestor: CallNode): boolean {
     p = p.parent
   }
   return false
+}
+
+/** Every node in `model`, in document order. */
+export const walk = (model: Model): CallNode[] =>
+  [...model.byId.keys()].sort((a, b) => a - b).map((id) => model.byId.get(id)!)
+
+/** Ids of every node beneath `id`, not including `id` itself. */
+export function descendantIds(model: Model, id: number): number[] {
+  const n = model.byId.get(id)
+  if (!n) return []
+  const out: number[] = []
+  const visit = (x: CallNode) =>
+    x.children.forEach((c) => {
+      out.push(c.id)
+      visit(c)
+    })
+  visit(n)
+  return out
 }

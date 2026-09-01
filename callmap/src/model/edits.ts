@@ -84,3 +84,12 @@ export function reparent(text: string, model: Model, id: number, targetId: numbe
 
   return { text: rest.join('\n'), structural: true }
 }
+
+/** Tick a follow-up off, or un-tick it. */
+export function toggleDone(text: string, model: Model, id: number): EditResult | null {
+  const n = model.byId.get(id)
+  if (!n) return null
+  const lines = text.split('\n')
+  lines[id] = serialize(n, { done: !n.done })
+  return { text: lines.join('\n'), structural: false }
+}

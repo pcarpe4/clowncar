@@ -227,3 +227,117 @@ describe('follow-up stats', () => {
     expect(followUpStats(parseText('> no date here'))).toEqual({ total: 1, dated: 0 })
   })
 })
+
+describe('parseLine — the added types', () => {
+  it('reads D: as a decision', () => {
+    expect(parseLine('D: Feature-flag the checkout')).toMatchObject({
+      type: 'decision',
+      text: 'Feature-flag the checkout',
+    })
+  })
+
+  it('reads !! as a risk, and does not let ! swallow it first', () => {
+    expect(parseLine('!! Payment migration is untested')).toMatchObject({
+      type: 'risk',
+      text: 'Payment migration is untested',
+    })
+  })
+
+  it('still reads a single ! as a follow-up', () => {
+    expect(parseLine('! Confirm timeline').type).toBe('action')
+  })
+
+  it('reads ~ as an idea', () => {
+    expect(parseLine('~ Partner webinar')).toMatchObject({
+      type: 'idea',
+      text: 'Partner webinar',
+    })
+  })
+
+  it('reads "# " as a topic', () => {
+    expect(parseLine('# Launch readiness')).toMatchObject({
+      type: 'topic',
+      text: 'Launch readiness',
+    })
+  })
+
+  it('accepts the spelled-out prefixes', () => {
+    expect(parseLine('decision: ship it').type).toBe('decision')
+    expect(parseLine('decided: ship it').type).toBe('decision')
+    expect(parseLine('risk: vendor is late').type).toBe('risk')
+    expect(parseLine('blocker: vendor is late').type).toBe('risk')
+    expect(parseLine('idea: try a webinar').type).toBe('idea')
+    expect(parseLine('topic: budget').type).toBe('topic')
+  })
+
+  it('accepts the single-letter forms, case-insensitively', () => {
+    expect(parseLine('d: ship it').type).toBe('decision')
+    expect(parseLine('R: vendor is late').type).toBe('risk')
+    expect(parseLine('i: try a webinar').type).toBe('idea')
+    expect(parseLine('t: budget').type).toBe('topic')
+  })
+
+  it('does not read "todo:" as a topic', () => {
+    expect(parseLine('todo: Confirm timeline').type).toBe('action')
+  })
+
+  it('does not promote a decision that ends in ? to a question', () => {
+    expect(parseLine('D: ship dark, ok?').type).toBe('decision')
+  })
+})
+
+describe('parseLine — # is a topic only when followed by a space', () => {
+  it('treats a leading #name as an owner on a plain note', () => {
+    expect(parseLine('#Maria said yes')).toMatchObject({
+      type: 'note',
+      owner: 'Maria',
+      text: 'said yes',
+    })
+  })
+
+  it('reads an owner on a topic line', () => {
+    expect(parseLine('# Launch readiness #Maria')).toMatchObject({
+      type: 'topic',
+      text: 'Launch readiness',
+      owner: 'Maria',
+    })
+  })
+})
+
+describe('a decision closes a question', () => {
+  it('marks a question answered by a D: child', () => {
+    const m = parseText('Q: ship?\n  D: yes, behind a flag')
+    expect(m.byId.get(0)!.open).toBe(false)
+  })
+
+  it('leaves a question open when its only child is a risk', () => {
+    const m = parseText('Q: ship?\n  !! payments untested')
+    expect(m.byId.get(0)!.open).toBe(true)
+  })
+})
+
+describe('parseText — date resolution', () => {
+  it('resolves a date against the meeting reference day', () => {
+    const m = parseText('> Confirm QA timeline #Dave @Sep 3', '2026-09-01')
+    expect(m.byId.get(0)!.due).toMatchObject({ iso: '2026-09-03', approximate: false })
+  })
+
+  it('keeps the raw text alongside the resolved day', () => {
+    const m = parseText('> Ship it @eom', '2026-09-01')
+    expect(m.byId.get(0)!.date).toBe('eom')
+    expect(m.byId.get(0)!.due).toMatchObject({ iso: '2026-09-30', approximate: true })
+  })
+
+  it('leaves due null when the date is prose', () => {
+    const m = parseText('> Ship it @when the vendor replies', '2026-09-01')
+    expect(m.byId.get(0)!.date).toBe('when the vendor replies')
+    expect(m.byId.get(0)!.due).toBeNull()
+  })
+
+  it('resolves relative dates against the meeting, not against today', () => {
+    const a = parseText('> Ship it @friday', '2026-09-01')
+    const b = parseText('> Ship it @friday', '2027-03-01')
+    expect(a.byId.get(0)!.due!.iso).toBe('2026-09-04')
+    expect(b.byId.get(0)!.due!.iso).toBe('2027-03-05')
+  })
+})

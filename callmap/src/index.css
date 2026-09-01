@@ -8,9 +8,25 @@
   --color-line: #d5dbe4;
   --color-paper: #ffffff;
   --color-canvas: #eef1f5;
+  /* One token per card type; `-soft` is its tinted badge/fill counterpart. */
   --color-q: #3b5bdb;
   --color-a: #12876f;
   --color-f: #e8590c;
+  --color-d: #7c3aed;
+  --color-r: #dc2626;
+  --color-i: #ca8a04;
+  --color-t: #475569;
+
+  --color-q-soft: #e4e9fb;
+  --color-a-soft: #ddf3ec;
+  --color-f-soft: #fde6d8;
+  --color-d-soft: #ece3fd;
+  --color-r-soft: #fce3e3;
+  --color-i-soft: #fbf0d2;
+  --color-t-soft: #e6eaef;
+  --color-muted-soft: #eef0f4;
+
+  --color-overdue: #b42318;
 
   --font-display: 'Bricolage Grotesque', 'Instrument Sans', sans-serif;
   --font-ui: 'Instrument Sans', system-ui, -apple-system, sans-serif;

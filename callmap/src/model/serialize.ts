@@ -12,6 +12,7 @@ export function serialize(n: CallNode | ParsedLine, patch: Partial<ParsedLine> =
   return (
     ' '.repeat(Math.max(0, m.depth) * 2) +
     TYPES[m.type].prefix +
+    (m.done ? '[x] ' : '') +
     (m.text || '') +
     (m.owner ? ' #' + m.owner : '') +
     (m.date ? ' @' + m.date : '')
